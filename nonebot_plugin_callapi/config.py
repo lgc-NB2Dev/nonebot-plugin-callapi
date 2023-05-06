@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 
 class ConfigModel(BaseModel):
-    pass
+    callapi_pic: bool = True
 
 
 config: ConfigModel = ConfigModel.parse_obj(get_driver().config.dict())

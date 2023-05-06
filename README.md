@@ -25,7 +25,7 @@ _✨ 使用指令来调用 Bot 的 API ✨_
 <br />
 
 <a href="./LICENSE">
-  <img src="https://img.shields.io/github/license/lgc2333/nonebot-plugin-callapi.svg" alt="license">
+  <img src="https://img.shields.io/github/license/lgc-NB2Dev/nonebot-plugin-callapi.svg" alt="license">
 </a>
 <a href="https://pypi.python.org/pypi/nonebot-plugin-callapi">
   <img src="https://img.shields.io/pypi/v/nonebot-plugin-callapi.svg" alt="pypi">
@@ -38,7 +38,9 @@ _✨ 使用指令来调用 Bot 的 API ✨_
 
 ## 📖 介绍
 
-这里是插件的详细介绍部分
+使用 Bot 指令来直接调用 Bot 的 API 吧！
+
+本插件理论上兼容任何适配器~
 
 ## 💿 安装
 
@@ -105,28 +107,23 @@ plugins = [
 
 ## ⚙️ 配置
 
-暂无
+在 nonebot2 项目的 `.env` 文件中添加下表中的必填配置
 
-<!--
-在 nonebot2 项目的`.env`文件中添加下表中的必填配置
-
-|  配置项  | 必填 | 默认值 |   说明   |
-| :------: | :--: | :----: | :------: |
-| 配置项 1 |  是  |   无   | 配置说明 |
-| 配置项 2 |  否  |   无   | 配置说明 |
--->
+|    配置项     | 必填 | 默认值 | 说明                                                                                                                                                                          |
+| :-----------: | :--: | :----: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CALLAPI_PIC` |  否  | `True` | API 调用结果是否生成为图片<br />Tip: 除 [SAA](https://github.com/felinae98/nonebot-plugin-send-anything-anywhere) 支持的平台 以及 Telegram 外，<br />调用结果只能发送为纯文本 |
 
 ## 🎉 使用
 
-### 指令表
+### 指令
 
-|   指令    | 权限 | 需要@ | 范围 |              说明              |
-| :-------: | :--: | :---: | :--: | :----------------------------: |
-| `callapi` | 主人 |  否   | 所有 | 使用 `callapi -h` 查看指令帮助 |
+插件指令仅限 `SUPERUSER` 调用
+
+![intro](https://raw.githubusercontent.com/lgc-NB2Dev/readme/main/callapi/intro.png)
 
 ### 效果图
 
-如果有效果图的话
+![preview](https://raw.githubusercontent.com/lgc-NB2Dev/readme/main/callapi/preview.png)
 
 ## 📞 联系
 
@@ -139,7 +136,15 @@ Telegram：[@lgc2333](https://t.me/lgc2333)
 
 ### [ITCraftDevelopmentTeam/XDbot2](https://github.com/ITCraftDevelopmentTeam/XDbot2)
 
-- 功能启发
+功能启发
+
+### [MeetWq/pil-utils](https://github.com/MeetWq/pil-utils)
+
+超好用的 Pillow 辅助库
+
+### [felinae98/nonebot-plugin-send-anything-anywhere](https://github.com/felinae98/nonebot-plugin-send-anything-anywhere)
+
+多适配器消息发送支持（本插件用来发送图片）
 
 ## 💰 赞助
 

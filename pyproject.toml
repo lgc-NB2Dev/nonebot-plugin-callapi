@@ -16,7 +16,7 @@ readme = "README.md"
 license = { text = "MIT" }
 
 [project.urls]
-homepage = "https://github.com/lgc2333/nonebot-plugin-callapi"
+homepage = "https://github.com/lgc-NB2Dev/nonebot-plugin-callapi"
 
 [project.optional-dependencies]
 dev = [
