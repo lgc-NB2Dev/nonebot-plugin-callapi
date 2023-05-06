@@ -1,7 +1,7 @@
 import json
 import traceback
 from dataclasses import dataclass
-from typing import Dict, List, Type, Union
+from typing import Dict, List, Optional, Type, Union
 
 from nonebot import on_shell_command, require
 from nonebot.exception import ParserExit
@@ -13,11 +13,13 @@ from nonebot.permission import SUPERUSER
 from nonebot.rule import ArgumentParser, Namespace
 from PIL import Image
 from pil_utils import BuildImage, Text2Image
+from pil_utils.fonts import DEFAULT_FALLBACK_FONTS
 from pydantic import BaseModel
 from pygments import highlight
 from pygments.formatters import BBCodeFormatter
 from pygments.lexer import Lexer
 from pygments.lexers import JsonLexer, PythonTracebackLexer
+from pygments.style import Style
 
 try:
     from nonebot.adapters.telegram import Event as TgEvent
@@ -29,6 +31,21 @@ require("nonebot_plugin_saa")
 from nonebot_plugin_saa import Image as SAAImage  # noqa: E402
 from nonebot_plugin_saa import MessageFactory, extract_target  # noqa: E402
 
+CODE_FONTS = [
+    "JetBrains Mono",
+    "Cascadia Mono",
+    "Segoe UI Mono",
+    "Liberation Mono",
+    "Menlo",
+    "Monaco",
+    "Consolas",
+    "Roboto Mono",
+    "Courier New",
+    "Courier",
+    "Microsoft YaHei UI",
+    *DEFAULT_FALLBACK_FONTS,
+]
+
 
 @dataclass()
 class Codeblock:
@@ -37,27 +54,63 @@ class Codeblock:
 
 
 def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
+    padding = 25
     images: List[Image.Image] = []
 
     for it in items:
+        is_codeblock = False
+        background_color: Optional[str] = None
+
         if isinstance(it, Codeblock):
             try:
-                it = highlight(it.content, it.lang(), BBCodeFormatter())
+                formatter = BBCodeFormatter()
+                style: Style = formatter.style
+                background_color = getattr(style, "background_color", None)
+                it = highlight(it.content, it.lang(), formatter)
+                is_codeblock = True
             except:
                 it = it.content
 
-        images.append(Text2Image.from_bbcode_text(it).to_image())
+        if not it:
+            it = "\n"
+
+        text_img = Text2Image.from_bbcode_text(it, fallback_fonts=CODE_FONTS).to_image()
+        if not is_codeblock:
+            img = text_img
+
+        else:
+            block_size = (text_img.width + padding * 2, text_img.height + padding * 2)
+            block_width, block_height = block_size
+
+            build_img = BuildImage.new("RGBA", block_size, (255, 255, 255, 0))
+
+            if background_color:
+                build_img.draw_rounded_rectangle(
+                    (0, 0, block_width, block_height),
+                    radius=10,
+                    fill=background_color,
+                )
+
+            build_img.paste(text_img, (padding, padding), alpha=True)
+
+            img = build_img.image
+
+        images.append(img)
 
     width = max(img.width for img in images)
     height = sum(img.height for img in images)
-    bg = BuildImage.new("RGBA", (width, height), (255, 255, 255))
+    bg = BuildImage.new(
+        "RGBA",
+        (width + padding * 2, height + padding * 2),
+        (255, 255, 255),
+    )
 
-    y = 0
+    y = padding
     for img in images:
-        bg.paste(img, (0, y))
+        bg.paste(img, (padding, y), alpha=True)
         y += img.height
 
-    return bg.save_jpg().getvalue()
+    return bg.convert("RGB").save("png").getvalue()
 
 
 async def send_return(bot: Bot, event: Event, items: List[Union[str, Codeblock]]):
@@ -133,13 +186,15 @@ async def _(
         await matcher.finish("参数解析错误，请检查后台输出")
 
     ret_items = [
-        "Params:",
+        f"[b]API:[/b] {api}",
+        "",
+        "[b]Params:[/b]",
         Codeblock(
             lang=JsonLexer,
             content=json.dumps(params_dict, ensure_ascii=False, indent=2),
         ),
         "",
-        "Result:",
+        "[b]Result:[/b]",
     ]
 
     try:
