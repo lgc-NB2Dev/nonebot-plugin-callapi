@@ -9,6 +9,7 @@ dependencies = [
     "pydantic>=1.10.4",
     "Pygments>=2.15.1",
     "pil-utils>=0.1.7",
+    "nonebot-plugin-send-anything-anywhere>=0.2.4",
 ]
 requires-python = ">=3.8,<4.0"
 readme = "README.md"

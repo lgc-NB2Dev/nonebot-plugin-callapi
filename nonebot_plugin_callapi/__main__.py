@@ -1,11 +1,11 @@
 import json
 import traceback
 from dataclasses import dataclass
-from typing import Dict, List, Union
+from typing import Dict, List, Type, Union
 
-from nonebot import on_shell_command
+from nonebot import on_shell_command, require
 from nonebot.exception import ParserExit
-from nonebot.internal.adapter import Bot, Message
+from nonebot.internal.adapter import Bot, Event
 from nonebot.log import logger
 from nonebot.matcher import Matcher
 from nonebot.params import ShellCommandArgs
@@ -15,18 +15,25 @@ from PIL import Image
 from pil_utils import BuildImage, Text2Image
 from pydantic import BaseModel
 from pygments import highlight
-from pygments.formatters import ImageFormatter
+from pygments.formatters import BBCodeFormatter
 from pygments.lexer import Lexer
+from pygments.lexers import JsonLexer, PythonTracebackLexer
+
+try:
+    from nonebot.adapters.telegram import Event as TgEvent
+    from nonebot.adapters.telegram.message import File as TgFile
+except ImportError:
+    TgEvent = None
+
+require("nonebot_plugin_saa")
+from nonebot_plugin_saa import Image as SAAImage  # noqa: E402
+from nonebot_plugin_saa import MessageFactory, extract_target  # noqa: E402
 
 
 @dataclass()
 class Codeblock:
-    lang: Lexer
+    lang: Type[Lexer]
     content: str
-
-
-def pack_sendable(img: bytes) -> Message:
-    pass
 
 
 def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
@@ -35,12 +42,9 @@ def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
     for it in items:
         if isinstance(it, Codeblock):
             try:
-                img = highlight(it.content, it.lang, ImageFormatter())
+                it = highlight(it.content, it.lang(), BBCodeFormatter())
             except:
                 it = it.content
-            else:
-                images.append(Image.open(img))
-                continue
 
         images.append(Text2Image.from_bbcode_text(it).to_image())
 
@@ -56,8 +60,24 @@ def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
     return bg.save_jpg().getvalue()
 
 
-def format_return(items: List[Union[str, Codeblock]]) -> Message:
-    return pack_sendable(draw_image(items))
+async def send_return(bot: Bot, event: Event, items: List[Union[str, Codeblock]]):
+    try:
+        # via saa
+        target = extract_target(event)
+        image = draw_image(items)
+        await MessageFactory(SAAImage(image)).send_to(target, bot=bot)
+
+    except:
+        if TgEvent and isinstance(event, TgEvent):
+            # telegram
+            image = draw_image(items)
+            await bot.send(event, TgFile.photo(image))
+
+        else:
+            content = "\n".join(
+                [x.content if isinstance(x, Codeblock) else x for x in items],
+            )
+            await bot.send(event, content)
 
 
 def parse_params(params: List[str]) -> Dict[str, str]:
@@ -95,7 +115,12 @@ call_api_matcher = on_shell_command("callapi", permission=SUPERUSER, parser=pars
 
 
 @call_api_matcher.handle()
-async def _(matcher: Matcher, bot: Bot, args: Namespace = ShellCommandArgs()):
+async def _(
+    matcher: Matcher,
+    bot: Bot,
+    event: Event,
+    args: Namespace = ShellCommandArgs(),
+):
     api: str = args.api
 
     params: List[str] = args.params
@@ -107,23 +132,42 @@ async def _(matcher: Matcher, bot: Bot, args: Namespace = ShellCommandArgs()):
         logger.exception("参数解析错误")
         await matcher.finish("参数解析错误，请检查后台输出")
 
+    ret_items = [
+        "Params:",
+        Codeblock(
+            lang=JsonLexer,
+            content=json.dumps(params_dict, ensure_ascii=False, indent=2),
+        ),
+        "",
+        "Result:",
+    ]
+
     try:
         result = await bot.call_api(api, **params_dict)
     except Exception:
         formatted = traceback.format_exc()
-        await matcher.finish("API 调用失败")
+        ret_items.append("Call API Failed!")
+        ret_items.append(Codeblock(lang=PythonTracebackLexer, content=formatted))
 
-    if isinstance(result, BaseModel):
-        result = result.dict()
+    else:
+        if isinstance(result, BaseModel):
+            result = result.dict()
 
-    try:
-        formatted = json.dumps(result, ensure_ascii=False, indent=2)
-    except:
-        formatted = str(result)
+        try:
+            ret_items.append(
+                Codeblock(
+                    lang=JsonLexer,
+                    content=json.dumps(result, ensure_ascii=False, indent=2),
+                ),
+            )
+        except:
+            formatted = str(result)
+            ret_items.append(formatted)
 
-    await matcher.finish(formatted)
+    await send_return(bot, event, ret_items)
 
 
 @call_api_matcher.handle()
-async def _(matcher: Matcher, err: ParserExit = ShellCommandArgs()):
-    await matcher.finish(err.message)
+async def _(bot: Bot, event: Event, err: ParserExit = ShellCommandArgs()):
+    if msg := err.message:
+        await send_return(bot, event, [msg])
