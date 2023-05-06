@@ -1,8 +1,9 @@
 import json
 import traceback
 from dataclasses import dataclass
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Optional, Tuple, Type, Union
 
+from bbcode import Parser as BBCodeParser
 from nonebot import on_shell_command, require
 from nonebot.exception import ParserExit
 from nonebot.internal.adapter import Bot, Event
@@ -45,6 +46,9 @@ CODE_FONTS = [
     "Microsoft YaHei UI",
     *DEFAULT_FALLBACK_FONTS,
 ]
+PADDING = 25
+
+bbcode_parser = BBCodeParser()
 
 
 @dataclass()
@@ -53,61 +57,86 @@ class Codeblock:
     content: str
 
 
+def item_to_plain_text(item: Union[str, Codeblock]) -> str:
+    parsed: List[
+        Tuple[int, Optional[str], Optional[dict], str]
+    ] = bbcode_parser.tokenize(item.content if isinstance(item, Codeblock) else item)
+    return "".join(
+        [
+            data
+            for b_type, _, _, data in parsed
+            if b_type == BBCodeParser.TOKEN_DATA or b_type == BBCodeParser.TOKEN_NEWLINE
+        ],
+    )
+
+
+def format_plain_text(items: List[Union[str, Codeblock]]) -> str:
+    return "\n".join(item_to_plain_text(it) for it in items)
+
+
+def item_to_image(item: Union[str, Codeblock]) -> Image.Image:
+    item = item or "\n"
+
+    is_codeblock = False
+    background_color: Optional[str] = None
+
+    if not isinstance(item, Codeblock):
+        formatted = item
+
+    else:
+        try:
+            formatter = BBCodeFormatter()
+            style: Style = formatter.style
+            background_color = getattr(style, "background_color", None)
+
+            formatted: str = highlight(item.content, item.lang(), formatter)
+            is_codeblock = True
+
+        except:
+            formatted = item.content
+
+    text_img = Text2Image.from_bbcode_text(
+        formatted,
+        fallback_fonts=CODE_FONTS,
+    ).to_image()
+
+    if not is_codeblock:
+        img = text_img
+
+    else:
+        block_size = (text_img.width + PADDING * 2, text_img.height + PADDING * 2)
+        block_width, block_height = block_size
+
+        build_img = BuildImage.new("RGBA", block_size, (255, 255, 255, 0))
+
+        if background_color:
+            build_img.draw_rounded_rectangle(
+                (0, 0, block_width, block_height),
+                radius=10,
+                fill=background_color,
+            )
+
+        build_img.paste(text_img, (PADDING, PADDING), alpha=True)
+
+        img = build_img.image
+
+    return img
+
+
 def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
-    padding = 25
-    images: List[Image.Image] = []
-
-    for it in items:
-        is_codeblock = False
-        background_color: Optional[str] = None
-
-        if isinstance(it, Codeblock):
-            try:
-                formatter = BBCodeFormatter()
-                style: Style = formatter.style
-                background_color = getattr(style, "background_color", None)
-                it = highlight(it.content, it.lang(), formatter)
-                is_codeblock = True
-            except:
-                it = it.content
-
-        if not it:
-            it = "\n"
-
-        text_img = Text2Image.from_bbcode_text(it, fallback_fonts=CODE_FONTS).to_image()
-        if not is_codeblock:
-            img = text_img
-
-        else:
-            block_size = (text_img.width + padding * 2, text_img.height + padding * 2)
-            block_width, block_height = block_size
-
-            build_img = BuildImage.new("RGBA", block_size, (255, 255, 255, 0))
-
-            if background_color:
-                build_img.draw_rounded_rectangle(
-                    (0, 0, block_width, block_height),
-                    radius=10,
-                    fill=background_color,
-                )
-
-            build_img.paste(text_img, (padding, padding), alpha=True)
-
-            img = build_img.image
-
-        images.append(img)
+    images = [item_to_image(it) for it in items]
 
     width = max(img.width for img in images)
     height = sum(img.height for img in images)
     bg = BuildImage.new(
         "RGBA",
-        (width + padding * 2, height + padding * 2),
+        (width + PADDING * 2, height + PADDING * 2),
         (255, 255, 255),
     )
 
-    y = padding
+    y = PADDING
     for img in images:
-        bg.paste(img, (padding, y), alpha=True)
+        bg.paste(img, (PADDING, y), alpha=True)
         y += img.height
 
     return bg.convert("RGB").save("png").getvalue()
@@ -127,10 +156,7 @@ async def send_return(bot: Bot, event: Event, items: List[Union[str, Codeblock]]
             await bot.send(event, TgFile.photo(image))
 
         else:
-            content = "\n".join(
-                [x.content if isinstance(x, Codeblock) else x for x in items],
-            )
-            await bot.send(event, content)
+            await bot.send(event, format_plain_text(items))
 
 
 def parse_params(params: List[str]) -> Dict[str, str]:
