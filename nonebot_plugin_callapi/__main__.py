@@ -6,9 +6,9 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from bbcode import Parser as BBCodeParser
 from nonebot import on_command, require
-from nonebot.internal.adapter import Bot, Event, Message
+from nonebot.internal.adapter import Bot, Message
 from nonebot.log import logger
-from nonebot.matcher import Matcher
+from nonebot.matcher import Matcher, current_bot, current_event
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from PIL import Image
@@ -22,15 +22,9 @@ from pygments.style import Style
 
 from .config import config
 
-try:
-    from nonebot.adapters.telegram import Event as TgEvent
-    from nonebot.adapters.telegram.message import File as TgFile
-except ImportError:
-    TgEvent = None
-
 require("nonebot_plugin_saa")
 from nonebot_plugin_saa import Image as SAAImage  # noqa: E402
-from nonebot_plugin_saa import MessageFactory, extract_target  # noqa: E402
+from nonebot_plugin_saa import MessageFactory  # noqa: E402
 
 CODE_FONTS = [
     "JetBrains Mono",
@@ -148,22 +142,15 @@ def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
     return bg.convert("RGB").save("png").getvalue()
 
 
-async def send_return(bot: Bot, event: Event, items: List[Union[str, Codeblock]]):
+async def send_return(items: List[Union[str, Codeblock]]):
     if config.callapi_pic:
         with suppress(Exception):
-            if TgEvent and isinstance(event, TgEvent):
-                # telegram
-                image = draw_image(items)
-                await bot.send(event, TgFile.photo(image))
-
-            else:
-                # via saa
-                target = extract_target(event)
-                image = draw_image(items)
-                await MessageFactory(SAAImage(image)).send_to(target, bot=bot)
-
+            image = draw_image(items)
+            await MessageFactory(SAAImage(image)).send(reply=True)
             return
 
+    event = current_event.get()
+    bot = current_bot.get()
     await bot.send(event, format_plain_text(items))
 
 
@@ -205,8 +192,7 @@ def parse_args(params: str) -> Tuple[str, Dict[str, Any]]:
 HELP_ITEMS = [
     "[b]指令格式：[/b]",
     Codeblock(lang=None, content="callapi <API 名称>\n[传入参数]"),
-    "其中，传入参数可以为一行一个的 name=value 格式的参数，也可以直接写一串 JSON",
-    "详见下面的调用示例",
+    "关于传入参数的格式，请看下面的调用示例",
     "",
     "[b]调用示例：[/b]",
     "使用 name=value 格式（会自动推断类型）：",
@@ -233,11 +219,11 @@ call_api_matcher = on_command("callapi", permission=SUPERUSER)
 
 
 @call_api_matcher.handle()
-async def _(matcher: Matcher, bot: Bot, event: Event, args: Message = CommandArg()):
+async def _(matcher: Matcher, bot: Bot, args: Message = CommandArg()):
     arg_txt = str(args).strip()
 
     if not arg_txt:
-        await send_return(bot, event, HELP_ITEMS)
+        await send_return(HELP_ITEMS)
         return
 
     try:
@@ -284,4 +270,4 @@ async def _(matcher: Matcher, bot: Bot, event: Event, args: Message = CommandArg
             ),
         )
 
-    await send_return(bot, event, ret_items)
+    await send_return(ret_items)
