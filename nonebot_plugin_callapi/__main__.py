@@ -2,11 +2,11 @@ import json
 import traceback
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from bbcode import Parser as BBCodeParser
 from nonebot import on_command, require
-from nonebot.internal.adapter import Bot, Message
+from nonebot.internal.adapter import Bot, Message, MessageSegment
 from nonebot.log import logger
 from nonebot.matcher import Matcher, current_bot, current_event
 from nonebot.params import CommandArg
@@ -98,29 +98,25 @@ def item_to_image(item: Union[str, Codeblock]) -> Image.Image:
     text_img = Text2Image.from_bbcode_text(
         formatted,
         fallback_fonts=CODE_FONTS,
-    ).to_image()
+    )
 
     if not is_codeblock:
-        img = text_img
+        return text_img.to_image()
 
-    else:
-        block_size = (text_img.width + PADDING * 2, text_img.height + PADDING * 2)
-        block_width, block_height = block_size
+    block_size = (text_img.width + PADDING * 2, text_img.height + PADDING * 2)
+    block_width, block_height = block_size
 
-        build_img = BuildImage.new("RGBA", block_size, (255, 255, 255, 0))
+    build_img = BuildImage.new("RGBA", block_size, (255, 255, 255, 0))
 
-        if background_color:
-            build_img.draw_rounded_rectangle(
-                (0, 0, block_width, block_height),
-                radius=10,
-                fill=background_color,
-            )
+    if background_color:
+        build_img.draw_rounded_rectangle(
+            (0, 0, block_width, block_height),
+            radius=10,
+            fill=background_color,
+        )
 
-        build_img.paste(text_img, (PADDING, PADDING), alpha=True)
-
-        img = build_img.image
-
-    return img
+    text_img.draw_on_image(build_img.image, (PADDING, PADDING))
+    return build_img.image
 
 
 def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
@@ -220,7 +216,12 @@ call_api_matcher = on_command("callapi", permission=SUPERUSER)
 
 @call_api_matcher.handle()
 async def _(matcher: Matcher, bot: Bot, args: Message = CommandArg()):
-    arg_txt = str(args).strip()
+    arg_txt = "".join(
+        [
+            txt if x.is_text() and (txt := x.data.get("text")) else str(x)
+            for x in cast(Iterable[MessageSegment], args)
+        ],
+    ).strip()
 
     if not arg_txt:
         await send_return(HELP_ITEMS)
