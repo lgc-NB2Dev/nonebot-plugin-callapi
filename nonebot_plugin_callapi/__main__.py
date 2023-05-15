@@ -20,6 +20,12 @@ from pygments.formatters import BBCodeFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.style import Style
 
+try:
+    from nonebot.adapters.telegram.event import MessageEvent as TgMsgEvent
+    from nonebot.adapters.telegram.message import File as TgFile
+except ImportError:
+    TgEvent = None
+
 from .config import config
 
 require("nonebot_plugin_saa")
@@ -138,15 +144,40 @@ def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
     return bg.convert("RGB").save("png").getvalue()
 
 
-async def send_return(items: List[Union[str, Codeblock]]):
-    if config.callapi_pic:
-        with suppress(Exception):
-            image = draw_image(items)
-            await MessageFactory(SAAImage(image)).send(reply=True)
-            return
+# async def send_return(items: List[Union[str, Codeblock]]):
+#     if config.callapi_pic:
+#         with suppress(Exception):
+#             image = draw_image(items)
+#             await MessageFactory(SAAImage(image)).send(reply=True)
+#             return
 
+#     event = current_event.get()
+#     bot = current_bot.get()
+#     await bot.send(event, format_plain_text(items))
+
+
+async def send_return(items: List[Union[str, Codeblock]]):
     event = current_event.get()
     bot = current_bot.get()
+
+    if config.callapi_pic:
+        with suppress(Exception):
+            if TgEvent and isinstance(event, TgMsgEvent):
+                # telegram
+                image = draw_image(items)
+                await bot.send(
+                    event,
+                    TgFile.photo(image),
+                    reply_to_message_id=event.message_id,
+                )
+
+            else:
+                # via saa
+                image = draw_image(items)
+                await MessageFactory(SAAImage(image)).send(reply=True)
+
+            return
+
     await bot.send(event, format_plain_text(items))
 
 
