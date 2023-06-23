@@ -160,6 +160,14 @@ Telegram：[@lgc2333](https://t.me/lgc2333)
 
 ## 📝 更新日志
 
+### 0.1.3
+
+- 删除插件自身对 Telegram 消息发送的兼容，现在发送 Telegram 消息使用 SAA 接管
+
+### 0.1.2
+
+- 🎉 NoneBot 2.0 🚀
+
 ### 0.1.1
 
 - 修复文本类 Segment 未做转义处理的问题

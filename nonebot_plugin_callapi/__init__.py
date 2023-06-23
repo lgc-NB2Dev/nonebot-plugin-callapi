@@ -1,9 +1,11 @@
-from nonebot.plugin import PluginMetadata
+from nonebot.plugin import PluginMetadata, require
 
-from .__main__ import HELP_TEXT
-from .config import ConfigModel
+require("nonebot_plugin_saa")
 
-__version__ = "0.1.2"
+from .__main__ import HELP_TEXT  # noqa: E402
+from .config import ConfigModel  # noqa: E402
+
+__version__ = "0.1.3"
 __plugin_meta__ = PluginMetadata(
     name="CallAPI",
     description="使用指令来调用 Bot 的 API",

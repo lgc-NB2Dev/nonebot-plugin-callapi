@@ -5,12 +5,14 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from bbcode import Parser as BBCodeParser
-from nonebot import on_command, require
+from nonebot import on_command
 from nonebot.internal.adapter import Bot, Message, MessageSegment
 from nonebot.log import logger
 from nonebot.matcher import Matcher, current_bot, current_event
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
+from nonebot_plugin_saa import Image as SAAImage
+from nonebot_plugin_saa import MessageFactory
 from PIL import Image
 from pil_utils import BuildImage, Text2Image
 from pil_utils.fonts import DEFAULT_FALLBACK_FONTS
@@ -20,17 +22,7 @@ from pygments.formatters import BBCodeFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.style import Style
 
-try:
-    from nonebot.adapters.telegram.event import MessageEvent as TgMsgEvent
-    from nonebot.adapters.telegram.message import File as TgFile
-except ImportError:
-    TgEvent = None
-
 from .config import config
-
-require("nonebot_plugin_saa")
-from nonebot_plugin_saa import Image as SAAImage  # noqa: E402
-from nonebot_plugin_saa import MessageFactory  # noqa: E402
 
 CODE_FONTS = [
     "JetBrains Mono",
@@ -144,39 +136,18 @@ def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
     return bg.convert("RGB").save("png").getvalue()
 
 
-# async def send_return(items: List[Union[str, Codeblock]]):
-#     if config.callapi_pic:
-#         with suppress(Exception):
-#             image = draw_image(items)
-#             await MessageFactory(SAAImage(image)).send(reply=True)
-#             return
-
-#     event = current_event.get()
-#     bot = current_bot.get()
-#     await bot.send(event, format_plain_text(items))
-
-
 async def send_return(items: List[Union[str, Codeblock]]):
     event = current_event.get()
     bot = current_bot.get()
 
     if config.callapi_pic:
-        with suppress(Exception):
-            if TgEvent and isinstance(event, TgMsgEvent):
-                # telegram
-                image = draw_image(items)
-                await bot.send(
-                    event,
-                    TgFile.photo(image),
-                    reply_to_message_id=event.message_id,
-                )
-
-            else:
-                # via saa
-                image = draw_image(items)
-                await MessageFactory(SAAImage(image)).send(reply=True)
-
-            return
+        try:
+            # via saa
+            image = draw_image(items)
+            await MessageFactory(SAAImage(image)).send(reply=True)
+        except Exception:
+            logger.exception("Error when sending image via saa, fallback to plain text")
+        return
 
     await bot.send(event, format_plain_text(items))
 
