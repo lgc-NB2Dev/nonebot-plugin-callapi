@@ -18,7 +18,7 @@ from pil_utils import BuildImage, Text2Image
 from pil_utils.fonts import DEFAULT_FALLBACK_FONTS
 from pydantic import BaseModel
 from pygments import highlight
-from pygments.formatters import BBCodeFormatter
+from pygments.formatters.bbcode import BBCodeFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.style import Style
 
