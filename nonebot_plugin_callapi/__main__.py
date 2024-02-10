@@ -2,7 +2,17 @@ import json
 import traceback
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Tuple, Union, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Union,
+    cast,
+)
 
 from bbcode import Parser as BBCodeParser
 from nonebot import on_command
@@ -11,8 +21,7 @@ from nonebot.log import logger
 from nonebot.matcher import Matcher, current_bot, current_event
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
-from nonebot_plugin_saa import Image as SAAImage
-from nonebot_plugin_saa import MessageFactory
+from nonebot_plugin_saa import Image as SAAImage, MessageFactory
 from PIL import Image
 from pil_utils import BuildImage, Text2Image
 from pil_utils.fonts import DEFAULT_FALLBACK_FONTS
@@ -20,7 +29,9 @@ from pydantic import BaseModel
 from pygments import highlight
 from pygments.formatters.bbcode import BBCodeFormatter
 from pygments.lexers import get_lexer_by_name
-from pygments.style import Style
+
+if TYPE_CHECKING:
+    from pygments.style import Style
 
 from .config import config
 
@@ -81,7 +92,7 @@ def item_to_image(item: Union[str, Codeblock]) -> Image.Image:
 
     else:
         formatter = BBCodeFormatter()
-        style: Style = formatter.style
+        style: "Style" = formatter.style
         background_color = getattr(style, "background_color", None)
 
         formatted: Optional[str] = None
@@ -172,8 +183,7 @@ def parse_args(params: str) -> Tuple[str, Dict[str, Any]]:
 
     try:
         param_dict = json.loads("\n".join(param_lines))
-
-    except:
+    except Exception:
         param_dict = {}
         for line in param_lines:
             if "=" not in line:
@@ -255,8 +265,12 @@ async def _(matcher: Matcher, bot: Bot, args: Message = CommandArg()):
         result = await bot.call_api(api, **params_dict)
     except Exception:
         formatted = traceback.format_exc().strip()
-        ret_items.append("Call API Failed!")
-        ret_items.append(Codeblock(lang="pytb", content=formatted))
+        ret_items.extend(
+            (
+                "Call API Failed!",
+                Codeblock(lang="pytb", content=formatted),
+            ),
+        )
 
     else:
         if isinstance(result, BaseModel):
