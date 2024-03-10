@@ -24,6 +24,9 @@ _✨ 使用指令来调用 Bot 的 API ✨_
 
 <br />
 
+<a href="https://pydantic.dev">
+  <img src="https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/lgc-NB2Dev/readme/main/template/pyd-v1-or-v2.json" alt="Pydantic Version 1 Or 2" >
+</a>
 <a href="./LICENSE">
   <img src="https://img.shields.io/github/license/lgc-NB2Dev/nonebot-plugin-callapi.svg" alt="license">
 </a>
@@ -159,6 +162,11 @@ Telegram：[@lgc2333](https://t.me/lgc2333)
   </details>
 
 ## 📝 更新日志
+
+### 0.2.0
+
+- 适配 Pydantic V1 & V2
+- 换用 alconna
 
 ### 0.1.3
 

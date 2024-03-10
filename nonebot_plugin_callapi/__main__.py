@@ -16,12 +16,12 @@ from typing import (
 
 from bbcode import Parser as BBCodeParser
 from nonebot import on_command
-from nonebot.internal.adapter import Bot, Message, MessageSegment
+from nonebot.adapters import Bot, Message, MessageSegment
 from nonebot.log import logger
 from nonebot.matcher import Matcher, current_bot, current_event
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
-from nonebot_plugin_saa import Image as SAAImage, MessageFactory
+from nonebot_plugin_alconna.uniseg import UniMessage
 from PIL import Image
 from pil_utils import BuildImage, Text2Image
 from pil_utils.fonts import DEFAULT_FALLBACK_FONTS
@@ -155,9 +155,11 @@ async def send_return(items: List[Union[str, Codeblock]]):
         try:
             # via saa
             image = draw_image(items)
-            await MessageFactory(SAAImage(image)).send(reply=True)
+            await UniMessage.image(raw=image).send(reply_to=True, fallback=False)
         except Exception:
-            logger.exception("Error when sending image via saa, fallback to plain text")
+            logger.exception(
+                "Error when sending image via uniseg, fallback to plain text",
+            )
         return
 
     await bot.send(event, format_plain_text(items))
