@@ -61,12 +61,12 @@ class Codeblock:
 
 
 def item_to_plain_text(item: Union[str, Codeblock]) -> str:
-    parsed: List[
-        Tuple[int, Optional[str], Optional[dict], str]
-    ] = bbcode_parser.tokenize(
-        f"```{item.lang or ''}\n{item.content}\n```"
-        if isinstance(item, Codeblock)
-        else item,
+    parsed: List[Tuple[int, Optional[str], Optional[dict], str]] = (
+        bbcode_parser.tokenize(
+            f"```{item.lang or ''}\n{item.content}\n```"
+            if isinstance(item, Codeblock)
+            else item,
+        )
     )
     return "".join(
         [
@@ -185,13 +185,11 @@ def parse_args(params: str) -> Tuple[str, Dict[str, Any]]:
 
     try:
         param_dict = json.loads("\n".join(param_lines))
-    except Exception:
+    except Exception as e:
         param_dict = {}
         for line in param_lines:
             if "=" not in line:
-                raise ValueError(  # noqa: B904, TRY200
-                    f"参数 `{line}` 格式错误，应为 name=param",
-                )
+                raise ValueError(f"参数 `{line}` 格式错误，应为 name=param") from e
 
             key, value = line.split("=", 1)
             param_dict[key.strip()] = cast_param_type(value.strip())
