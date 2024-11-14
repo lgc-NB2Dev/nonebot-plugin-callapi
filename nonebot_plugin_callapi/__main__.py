@@ -15,6 +15,7 @@ from typing import (
 )
 
 from bbcode import Parser as BBCodeParser
+from cookit.pyd import type_dump_python
 from nonebot import on_command
 from nonebot.adapters import Bot, Message, MessageSegment
 from nonebot.log import logger
@@ -24,7 +25,6 @@ from nonebot.permission import SUPERUSER
 from nonebot_plugin_alconna.uniseg import UniMessage
 from PIL import Image
 from pil_utils import BuildImage, Text2Image
-from pil_utils.fonts import DEFAULT_FALLBACK_FONTS
 from pydantic import BaseModel
 from pygments import highlight
 from pygments.formatters.bbcode import BBCodeFormatter
@@ -47,7 +47,6 @@ CODE_FONTS = [
     "Courier New",
     "Courier",
     "Microsoft YaHei UI",
-    *DEFAULT_FALLBACK_FONTS,
 ]
 PADDING = 25
 
@@ -106,13 +105,17 @@ def item_to_image(item: Union[str, Codeblock]) -> Image.Image:
 
     text_img = Text2Image.from_bbcode_text(
         formatted,
-        fallback_fonts=CODE_FONTS,
+        font_size=16,
+        font_families=CODE_FONTS,
     )
 
     if not is_codeblock:
         return text_img.to_image()
 
-    block_size = (text_img.width + PADDING * 2, text_img.height + PADDING * 2)
+    block_size = (
+        round(text_img.longest_line + PADDING * 2),
+        round(text_img.height + PADDING * 2),
+    )
     block_width, block_height = block_size
 
     build_img = BuildImage.new("RGBA", block_size, (255, 255, 255, 0))
@@ -201,7 +204,7 @@ HELP_ITEMS = [
     "[b]指令格式：[/b]",
     Codeblock(lang=None, content="callapi <API 名称>\n[传入参数]"),
     "关于传入参数的格式，请看下面的调用示例",
-    "",
+    " ",
     "[b]调用示例：[/b]",
     "使用 name=value 格式（会自动推断类型）：",
     Codeblock(
@@ -249,15 +252,15 @@ async def _(matcher: Matcher, bot: Bot, args: Message = CommandArg()):
 
     ret_items = [
         f"[b]Bot:[/b] {bot.adapter.get_name()} {bot.self_id}",
-        "",
+        " ",
         f"[b]API:[/b] {api}",
-        "",
+        " ",
         "[b]Params:[/b]",
         Codeblock(
             lang="json",
-            content=json.dumps(params_dict, ensure_ascii=False, indent=2),
+            content=json.dumps(params_dict, ensure_ascii=False, indent=2).rstrip(),
         ),
-        "",
+        " ",
         "[b]Result:[/b]",
     ]
 
@@ -274,11 +277,11 @@ async def _(matcher: Matcher, bot: Bot, args: Message = CommandArg()):
 
     else:
         if isinstance(result, BaseModel):
-            result = result.dict()
+            result = type_dump_python(result)
 
         content = None
         with suppress(Exception):
-            content = json.dumps(result, ensure_ascii=False, indent=2)
+            content = json.dumps(result, ensure_ascii=False, indent=2).rstrip()
 
         ret_items.append(
             Codeblock(

@@ -7,7 +7,8 @@ dependencies = [
     "nonebot2>=2.3.1",
     "nonebot-plugin-alconna>=0.48.0",
     "Pygments>=2.18.0",
-    "pil-utils>=0.1.10",
+    "pil-utils>=0.2.1",
+    "cookit[pyd]>=0.8.1",
 ]
 requires-python = ">=3.9,<4.0"
 readme = "README.md"
