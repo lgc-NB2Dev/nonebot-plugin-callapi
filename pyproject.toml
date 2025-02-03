@@ -4,11 +4,11 @@ dynamic = ["version"]
 description = "Use bot command to call its API"
 authors = [{ name = "LgCookie", email = "lgc2333@126.com" }]
 dependencies = [
-    "nonebot2>=2.3.1",
-    "nonebot-plugin-alconna>=0.48.0",
-    "Pygments>=2.18.0",
-    "pil-utils>=0.2.1",
-    "cookit[pyd]>=0.8.1",
+    "nonebot2>=2.4.1",
+    "nonebot-plugin-alconna>=0.54.2",
+    "Pygments>=2.19.1",
+    "pil-utils>=0.2.2",
+    "cookit[pyd]>=0.9.3",
 ]
 requires-python = ">=3.9,<4.0"
 readme = "README.md"
