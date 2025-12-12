@@ -1,16 +1,11 @@
 import json
 import traceback
+from collections.abc import Iterable
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
-    Iterable,
-    List,
-    Optional,
-    Tuple,
-    Union,
     cast,
 )
 
@@ -23,7 +18,6 @@ from nonebot.matcher import Matcher, current_bot, current_event
 from nonebot.params import CommandArg
 from nonebot.permission import SUPERUSER
 from nonebot_plugin_alconna.uniseg import UniMessage
-from PIL import Image
 from pil_utils import BuildImage, Text2Image
 from pydantic import BaseModel
 from pygments import highlight
@@ -31,6 +25,7 @@ from pygments.formatters.bbcode import BBCodeFormatter
 from pygments.lexers import get_lexer_by_name
 
 if TYPE_CHECKING:
+    from PIL import Image
     from pygments.style import Style
 
 from .config import config
@@ -55,12 +50,12 @@ bbcode_parser = BBCodeParser()
 
 @dataclass()
 class Codeblock:
-    lang: Optional[str]
+    lang: str | None
     content: str
 
 
-def item_to_plain_text(item: Union[str, Codeblock]) -> str:
-    parsed: List[Tuple[int, Optional[str], Optional[dict], str]] = (
+def item_to_plain_text(item: str | Codeblock) -> str:
+    parsed: list[tuple[int, str | None, dict | None, str]] = (
         bbcode_parser.tokenize(
             f"```{item.lang or ''}\n{item.content}\n```"
             if isinstance(item, Codeblock)
@@ -71,34 +66,34 @@ def item_to_plain_text(item: Union[str, Codeblock]) -> str:
         [
             data
             for b_type, _, _, data in parsed
-            if b_type == BBCodeParser.TOKEN_DATA or b_type == BBCodeParser.TOKEN_NEWLINE
+            if b_type in (BBCodeParser.TOKEN_DATA, BBCodeParser.TOKEN_NEWLINE)
         ],
     )
 
 
-def format_plain_text(items: List[Union[str, Codeblock]]) -> str:
+def format_plain_text(items: list[str | Codeblock]) -> str:
     return "\n".join(item_to_plain_text(it) for it in items)
 
 
-def item_to_image(item: Union[str, Codeblock]) -> Image.Image:
+def item_to_image(item: str | Codeblock) -> "Image.Image":
     item = item or "\n"
 
     is_codeblock = isinstance(item, Codeblock)
-    background_color: Optional[str] = None
+    background_color: str | None = None
 
     if not is_codeblock:
         formatted = item
 
     else:
         formatter = BBCodeFormatter()
-        style: "Style" = formatter.style
+        style: Style = formatter.style
         background_color = getattr(style, "background_color", None)
 
-        formatted: Optional[str] = None
+        formatted: str | None = None
         if item.lang:
             with suppress(Exception):
                 lexer = get_lexer_by_name(item.lang)
-                formatted = cast(str, highlight(item.content, lexer, formatter))
+                formatted = cast("str", highlight(item.content, lexer, formatter))
 
         if not formatted:
             formatted = item.content
@@ -131,7 +126,7 @@ def item_to_image(item: Union[str, Codeblock]) -> Image.Image:
     return build_img.image
 
 
-def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
+def draw_image(items: list[str | Codeblock]) -> bytes:
     images = [item_to_image(it) for it in items]
 
     width = max(img.width for img in images)
@@ -150,7 +145,7 @@ def draw_image(items: List[Union[str, Codeblock]]) -> bytes:
     return bg.convert("RGB").save("png").getvalue()
 
 
-async def send_return(items: List[Union[str, Codeblock]]):
+async def send_return(items: list[str | Codeblock]):
     event = current_event.get()
     bot = current_bot.get()
 
@@ -181,7 +176,7 @@ def cast_param_type(param: str) -> Any:
     return param
 
 
-def parse_args(params: str) -> Tuple[str, Dict[str, Any]]:
+def parse_args(params: str) -> tuple[str, dict[str, Any]]:
     lines = params.splitlines(keepends=False)
     api_name = lines[0].strip()
     param_lines = lines[1:]
@@ -234,7 +229,7 @@ async def _(matcher: Matcher, bot: Bot, args: Message = CommandArg()):
     arg_txt = "".join(
         [
             txt if x.is_text() and (txt := x.data.get("text")) else str(x)
-            for x in cast(Iterable[MessageSegment], args)
+            for x in cast("Iterable[MessageSegment]", args)
         ],
     ).strip()
 
